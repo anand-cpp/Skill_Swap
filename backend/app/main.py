@@ -13,6 +13,7 @@ from .db import get_conn, get_db, init_db, transaction
 from .logging_config import logger
 from .matching import find_cycles, match_student
 from .normalize import normalize
+from .rate_limiter import rate_limiting_middleware
 
 init_db()
 settings = get_settings()
@@ -67,6 +68,8 @@ async def generic_exception_handler(request: Request, exc: Exception):
             },
         },
     )
+
+app.middleware("http")(rate_limiting_middleware)
 
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
