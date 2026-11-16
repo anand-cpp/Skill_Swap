@@ -8,12 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from .config import get_settings
 from .db import get_conn, get_db, init_db, transaction
 from .logging_config import logger
 from .matching import find_cycles, match_student
 from .normalize import normalize
 
 init_db()
+settings = get_settings()
 
 app = FastAPI(
     title="SkillSwap API",
@@ -79,9 +81,11 @@ async def log_requests_and_timing(request: Request, call_next):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["X-Process-Time"],
 )
 
 
