@@ -6,9 +6,12 @@ DB_PATH = Path(__file__).resolve().parent.parent / "skillswap.db"
 LEVELS = {"beginner", "intermediate", "expert"}
 
 def get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=10.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 SCHEMA = """
@@ -39,6 +42,12 @@ CREATE TABLE IF NOT EXISTS requests (
     created_at TEXT DEFAULT (datetime('now')),
     decided_at TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_skills_student_direction ON skills(student_id, direction);
+CREATE INDEX IF NOT EXISTS idx_skills_name_direction ON skills(name, direction);
+CREATE INDEX IF NOT EXISTS idx_requests_sender ON requests(sender_id);
+CREATE INDEX IF NOT EXISTS idx_requests_receiver ON requests(receiver_id);
+CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
 """
 
 SEED = [
