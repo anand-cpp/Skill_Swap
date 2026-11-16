@@ -2,13 +2,12 @@ from collections.abc import Generator
 from contextlib import contextmanager
 import sqlite3
 from pathlib import Path
-
-DB_PATH = Path(__file__).resolve().parent.parent / "skillswap.db"
+from .config import get_settings
 
 LEVELS = {"beginner", "intermediate", "expert"}
 
 def get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=10.0)
+    conn = sqlite3.connect(get_settings().db_path, check_same_thread=False, timeout=10.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
