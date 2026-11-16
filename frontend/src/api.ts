@@ -8,7 +8,7 @@ import type {
   StudentSummary,
 } from "./types";
 
-const API = "http://127.0.0.1:8000/api";
+const API = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(API + path, init);
@@ -26,6 +26,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  health: () => request<{ status: string }>("/health"),
   listStudents: () => request<StudentSummary[]>("/students"),
   getStudent: (id: number) => request<Student>(`/students/${id}`),
   matches: (id: number) =>
