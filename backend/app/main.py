@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from .auth import create_session_token, get_current_student_optional
 from .config import get_settings
 from .db import get_conn, get_db, init_db, transaction
 from .logging_config import logger
@@ -123,9 +124,24 @@ class RequestIn(BaseModel):
     learn_skill_id: int
 
 
+class AuthSessionIn(BaseModel):
+    student_id: int = Field(gt=0)
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+@app.post("/api/auth/session")
+def create_auth_session(payload: AuthSessionIn, conn: sqlite3.Connection = Depends(get_db)):
+    student = fetch_student(payload.student_id, conn)
+    token = create_session_token(payload.student_id)
+    return {
+        "token": token,
+        "token_type": "bearer",
+        "student": student,
+    }
 
 
 @app.post("/api/students", status_code=201)
