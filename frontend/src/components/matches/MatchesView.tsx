@@ -413,12 +413,18 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                       const nextNode = cycle.participants[(pIdx + 1) % cycle.participants.length];
                       const prevNode = cycle.participants[(pIdx + 2) % cycle.participants.length];
 
+                      const displayName = isSelfNode ? (activeStudent?.name || "You") : p.name;
+                      const nextDisplayName = nextNode.id === activeStudent?.id ? (activeStudent?.name || "You") : nextNode.name;
+                      const prevDisplayName = prevNode.id === activeStudent?.id ? (activeStudent?.name || "You") : prevNode.name;
+
                       // Finding exchanges
                       const givesExchange = cycle.exchange.find(
-                        (e) => e.from === p.name && e.to === nextNode.name
+                        (e) => (e.from === p.name || (isSelfNode && e.from === "You")) &&
+                               (e.to === nextNode.name || (nextNode.id === activeStudent?.id && e.to === "You"))
                       );
                       const receivesExchange = cycle.exchange.find(
-                        (e) => e.to === p.name && e.from === prevNode.name
+                        (e) => (e.to === p.name || (isSelfNode && e.to === "You")) &&
+                               (e.from === prevNode.name || (prevNode.id === activeStudent?.id && e.from === "You"))
                       );
 
                       return (
@@ -433,11 +439,11 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                           <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2.5">
                               <div className="w-10 h-10 rounded-full bg-white text-[#4338ca] flex items-center justify-center font-['Manrope'] text-[13px] font-bold border border-[#c7c4d7]/30 shadow-2xs">
-                                {getInitials(p.name)}
+                                {getInitials(displayName)}
                               </div>
                               <div className="flex flex-col min-w-0">
                                 <span className="font-['Manrope'] text-[14px] font-bold text-[#1b1b1e] truncate">
-                                  {p.name}
+                                  {displayName}
                                 </span>
                                 <span className="font-['Manrope'] text-[11px] text-[#777586]">
                                   {isSelfNode ? "You (Active Anchor)" : `Node ${String.fromCharCode(65 + pIdx)}`}
@@ -454,7 +460,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                             {/* Gives */}
                             <div className="bg-white p-2.5 rounded-lg border border-[#c7c4d7]/30">
                               <div className="flex items-center justify-between text-[#006c4a] font-['Manrope'] text-[10px] font-bold uppercase mb-0.5">
-                                <span>Gives to {nextNode.name.split(" ")[0]}</span>
+                                <span>Gives to {nextDisplayName.split(" ")[0]}</span>
                                 <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
                               </div>
                               <span className="font-['Manrope'] text-[13px] font-bold text-[#1b1b1e]">
@@ -465,7 +471,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                             {/* Receives */}
                             <div className="bg-white p-2.5 rounded-lg border border-[#c7c4d7]/30">
                               <div className="flex items-center justify-between text-[#4338ca] font-['Manrope'] text-[10px] font-bold uppercase mb-0.5">
-                                <span>Receives from {prevNode.name.split(" ")[0]}</span>
+                                <span>Receives from {prevDisplayName.split(" ")[0]}</span>
                                 <span className="material-symbols-outlined text-[14px]">arrow_downward</span>
                               </div>
                               <span className="font-['Manrope'] text-[13px] font-bold text-[#1b1b1e]">
