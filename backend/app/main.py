@@ -208,7 +208,16 @@ def get_cycles(sid: int, conn: sqlite3.Connection = Depends(get_db)):
 
 
 @app.post("/api/requests", status_code=201)
-def create_request(payload: RequestIn, conn: sqlite3.Connection = Depends(get_db)):
+def create_request(
+    payload: RequestIn,
+    conn: sqlite3.Connection = Depends(get_db),
+    auth_user: Optional[dict] = Depends(get_current_student_optional),
+):
+    if auth_user and auth_user.get("sub") != payload.sender_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Authenticated session does not match sender_id",
+        )
     if payload.sender_id == payload.receiver_id:
         raise HTTPException(status_code=400, detail="Cannot request yourself")
     
@@ -250,10 +259,19 @@ def list_requests(sid: int, conn: sqlite3.Connection = Depends(get_db)):
 
 
 @app.post("/api/requests/{rid}/accept")
-def accept_request(rid: int, conn: sqlite3.Connection = Depends(get_db)):
+def accept_request(
+    rid: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    auth_user: Optional[dict] = Depends(get_current_student_optional),
+):
     row = conn.execute("SELECT * FROM requests WHERE id=?", (rid,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Request not found")
+    if auth_user and auth_user.get("sub") != row["receiver_id"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the proposal recipient can accept this exchange request",
+        )
     if row["status"] != "pending":
         raise HTTPException(status_code=409, detail="Request already decided")
     with transaction(conn):
@@ -262,10 +280,19 @@ def accept_request(rid: int, conn: sqlite3.Connection = Depends(get_db)):
 
 
 @app.post("/api/requests/{rid}/reject")
-def reject_request(rid: int, conn: sqlite3.Connection = Depends(get_db)):
+def reject_request(
+    rid: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    auth_user: Optional[dict] = Depends(get_current_student_optional),
+):
     row = conn.execute("SELECT * FROM requests WHERE id=?", (rid,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Request not found")
+    if auth_user and auth_user.get("sub") != row["receiver_id"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the proposal recipient can reject this exchange request",
+        )
     if row["status"] != "pending":
         raise HTTPException(status_code=409, detail="Request already decided")
     with transaction(conn):
@@ -274,10 +301,19 @@ def reject_request(rid: int, conn: sqlite3.Connection = Depends(get_db)):
 
 
 @app.post("/api/requests/{rid}/complete")
-def complete_request(rid: int, conn: sqlite3.Connection = Depends(get_db)):
+def complete_request(
+    rid: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    auth_user: Optional[dict] = Depends(get_current_student_optional),
+):
     row = conn.execute("SELECT * FROM requests WHERE id=?", (rid,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Request not found")
+    if auth_user and auth_user.get("sub") not in (row["sender_id"], row["receiver_id"]):
+        raise HTTPException(
+            status_code=403,
+            detail="Only exchange participants can mark this exchange complete",
+        )
     if row["status"] != "accepted":
         raise HTTPException(status_code=409, detail="Only an accepted exchange can be completed")
     with transaction(conn):
