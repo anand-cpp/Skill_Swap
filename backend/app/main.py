@@ -1,10 +1,11 @@
+import sqlite3
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .db import get_conn, init_db
+from .db import get_conn, get_db, init_db, transaction
 from .matching import find_cycles, match_student
 from .normalize import normalize
 
@@ -47,25 +48,23 @@ def health():
 
 
 @app.post("/api/students", status_code=201)
-def create_student(payload: StudentIn):
-    conn = get_conn()
-    cur = conn.execute(
-        "INSERT INTO students (name, college, bio) VALUES (?,?,?)",
-        (payload.name.strip(), payload.college.strip(), payload.bio.strip()),
-    )
-    sid = cur.lastrowid
-    for s in payload.skills:
-        conn.execute(
-            "INSERT INTO skills (student_id, name, category, direction, level) VALUES (?,?,?,?,?)",
-            (sid, normalize(s.name), s.category.strip(), s.direction, s.level),
+def create_student(payload: StudentIn, conn: sqlite3.Connection = Depends(get_db)):
+    with transaction(conn):
+        cur = conn.execute(
+            "INSERT INTO students (name, college, bio) VALUES (?,?,?)",
+            (payload.name.strip(), payload.college.strip(), payload.bio.strip()),
         )
-    conn.commit()
+        sid = cur.lastrowid
+        for s in payload.skills:
+            conn.execute(
+                "INSERT INTO skills (student_id, name, category, direction, level) VALUES (?,?,?,?,?)",
+                (sid, normalize(s.name), s.category.strip(), s.direction, s.level),
+            )
     return fetch_student(sid, conn)
 
 
 @app.get("/api/students")
-def list_students():
-    conn = get_conn()
+def list_students(conn: sqlite3.Connection = Depends(get_db)):
     rows = conn.execute(
         "SELECT s.id, s.name, s.college, s.bio, "
         "COUNT(CASE WHEN sk.direction='teach' THEN 1 END) AS teach_count, "
@@ -76,12 +75,11 @@ def list_students():
 
 
 @app.get("/api/students/{sid}")
-def get_student(sid: int):
-    return fetch_student(sid, get_conn())
+def get_student(sid: int, conn: sqlite3.Connection = Depends(get_db)):
+    return fetch_student(sid, conn)
 
 
-def fetch_student(sid: int, conn=None):
-    conn = conn or get_conn()
+def fetch_student(sid: int, conn: sqlite3.Connection):
     row = conn.execute(
         "SELECT id, name, college, bio FROM students WHERE id=?", (sid,)
     ).fetchone()
@@ -95,8 +93,8 @@ def fetch_student(sid: int, conn=None):
 
 
 @app.post("/api/students/{sid}/matches")
-def get_matches(sid: int):
-    row = get_conn().execute("SELECT id FROM students WHERE id=?", (sid,)).fetchone()
+def get_matches(sid: int, conn: sqlite3.Connection = Depends(get_db)):
+    row = conn.execute("SELECT id FROM students WHERE id=?", (sid,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Student not found")
     matches = match_student(sid)
@@ -104,8 +102,8 @@ def get_matches(sid: int):
 
 
 @app.post("/api/students/{sid}/cycles")
-def get_cycles(sid: int):
-    row = get_conn().execute("SELECT id FROM students WHERE id=?", (sid,)).fetchone()
+def get_cycles(sid: int, conn: sqlite3.Connection = Depends(get_db)):
+    row = conn.execute("SELECT id FROM students WHERE id=?", (sid,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Student not found")
     cycles = find_cycles(sid)
@@ -113,10 +111,10 @@ def get_cycles(sid: int):
 
 
 @app.post("/api/requests", status_code=201)
-def create_request(payload: RequestIn):
+def create_request(payload: RequestIn, conn: sqlite3.Connection = Depends(get_db)):
     if payload.sender_id == payload.receiver_id:
         raise HTTPException(status_code=400, detail="Cannot request yourself")
-    conn = get_conn()
+    
     teach = conn.execute(
         "SELECT id FROM skills WHERE id=? AND student_id=? AND direction='teach'",
         (payload.teach_skill_id, payload.sender_id),
@@ -135,17 +133,18 @@ def create_request(payload: RequestIn):
     ).fetchone()
     if dup:
         raise HTTPException(status_code=409, detail="Request already pending")
-    cur = conn.execute(
-        "INSERT INTO requests (sender_id, receiver_id, teach_skill_id, learn_skill_id) VALUES (?,?,?,?)",
-        (payload.sender_id, payload.receiver_id, payload.teach_skill_id, payload.learn_skill_id),
-    )
-    conn.commit()
-    return get_request_detail(cur.lastrowid, conn)
+    
+    with transaction(conn):
+        cur = conn.execute(
+            "INSERT INTO requests (sender_id, receiver_id, teach_skill_id, learn_skill_id) VALUES (?,?,?,?)",
+            (payload.sender_id, payload.receiver_id, payload.teach_skill_id, payload.learn_skill_id),
+        )
+        rid = cur.lastrowid
+    return get_request_detail(rid, conn)
 
 
 @app.get("/api/requests/{sid}")
-def list_requests(sid: int):
-    conn = get_conn()
+def list_requests(sid: int, conn: sqlite3.Connection = Depends(get_db)):
     rows = conn.execute(
         "SELECT id FROM requests WHERE sender_id=? OR receiver_id=? ORDER BY id DESC",
         (sid, sid),
@@ -154,41 +153,38 @@ def list_requests(sid: int):
 
 
 @app.post("/api/requests/{rid}/accept")
-def accept_request(rid: int):
-    conn = get_conn()
+def accept_request(rid: int, conn: sqlite3.Connection = Depends(get_db)):
     row = conn.execute("SELECT * FROM requests WHERE id=?", (rid,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Request not found")
     if row["status"] != "pending":
         raise HTTPException(status_code=409, detail="Request already decided")
-    conn.execute("UPDATE requests SET status='accepted', decided_at=datetime('now') WHERE id=?", (rid,))
-    conn.commit()
+    with transaction(conn):
+        conn.execute("UPDATE requests SET status='accepted', decided_at=datetime('now') WHERE id=?", (rid,))
     return get_request_detail(rid, conn)
 
 
 @app.post("/api/requests/{rid}/reject")
-def reject_request(rid: int):
-    conn = get_conn()
+def reject_request(rid: int, conn: sqlite3.Connection = Depends(get_db)):
     row = conn.execute("SELECT * FROM requests WHERE id=?", (rid,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Request not found")
     if row["status"] != "pending":
         raise HTTPException(status_code=409, detail="Request already decided")
-    conn.execute("UPDATE requests SET status='rejected', decided_at=datetime('now') WHERE id=?", (rid,))
-    conn.commit()
+    with transaction(conn):
+        conn.execute("UPDATE requests SET status='rejected', decided_at=datetime('now') WHERE id=?", (rid,))
     return get_request_detail(rid, conn)
 
 
 @app.post("/api/requests/{rid}/complete")
-def complete_request(rid: int):
-    conn = get_conn()
+def complete_request(rid: int, conn: sqlite3.Connection = Depends(get_db)):
     row = conn.execute("SELECT * FROM requests WHERE id=?", (rid,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Request not found")
     if row["status"] != "accepted":
         raise HTTPException(status_code=409, detail="Only an accepted exchange can be completed")
-    conn.execute("UPDATE requests SET status='completed', decided_at=datetime('now') WHERE id=?", (rid,))
-    conn.commit()
+    with transaction(conn):
+        conn.execute("UPDATE requests SET status='completed', decided_at=datetime('now') WHERE id=?", (rid,))
     return get_request_detail(rid, conn)
 
 

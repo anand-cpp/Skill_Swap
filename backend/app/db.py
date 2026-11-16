@@ -1,3 +1,5 @@
+from collections.abc import Generator
+from contextlib import contextmanager
 import sqlite3
 from pathlib import Path
 
@@ -13,6 +15,25 @@ def get_conn() -> sqlite3.Connection:
     conn.execute("PRAGMA synchronous = NORMAL")
     conn.execute("PRAGMA busy_timeout = 5000")
     return conn
+
+def get_db() -> Generator[sqlite3.Connection, None, None]:
+    """FastAPI dependency yielding a managed SQLite connection."""
+    conn = get_conn()
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+@contextmanager
+def transaction(conn: sqlite3.Connection) -> Generator[sqlite3.Connection, None, None]:
+    """Execute within a transaction block; commits on success, rolls back on exception."""
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS students (
