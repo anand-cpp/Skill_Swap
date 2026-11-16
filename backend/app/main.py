@@ -1,8 +1,10 @@
 import sqlite3
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from .db import get_conn, get_db, init_db, transaction
@@ -11,7 +13,56 @@ from .normalize import normalize
 
 init_db()
 
-app = FastAPI(title="SkillSwap API")
+app = FastAPI(
+    title="SkillSwap API",
+    description="Reciprocal peer-to-peer student skill exchange clearinghouse API.",
+    version="2.0.0",
+)
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "error": {
+                "code": exc.status_code,
+                "message": str(exc.detail),
+                "path": request.url.path,
+            },
+        },
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    first_msg = errors[0]["msg"] if errors else "Validation error"
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": errors,
+            "error": {
+                "code": 422,
+                "message": first_msg,
+                "details": errors,
+                "path": request.url.path,
+            },
+        },
+    )
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error",
+            "error": {
+                "code": 500,
+                "message": "Internal server error occurred.",
+                "path": request.url.path,
+            },
+        },
+    )
 
 app.add_middleware(
     CORSMiddleware,
