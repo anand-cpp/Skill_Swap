@@ -1,4 +1,5 @@
 import sqlite3
+import time
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -8,6 +9,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from .db import get_conn, get_db, init_db, transaction
+from .logging_config import logger
 from .matching import find_cycles, match_student
 from .normalize import normalize
 
@@ -63,6 +65,17 @@ async def generic_exception_handler(request: Request, exc: Exception):
             },
         },
     )
+
+@app.middleware("http")
+async def log_requests_and_timing(request: Request, call_next):
+    start_time = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = (time.perf_counter() - start_time) * 1000
+    response.headers["X-Process-Time"] = f"{duration_ms:.2f}ms"
+    logger.info(
+        f"{request.method} {request.url.path} -> {response.status_code} ({duration_ms:.2f}ms)"
+    )
+    return response
 
 app.add_middleware(
     CORSMiddleware,
