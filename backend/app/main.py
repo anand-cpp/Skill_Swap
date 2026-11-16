@@ -69,6 +69,16 @@ async def generic_exception_handler(request: Request, exc: Exception):
     )
 
 @app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+    return response
+
+@app.middleware("http")
 async def log_requests_and_timing(request: Request, call_next):
     start_time = time.perf_counter()
     response = await call_next(request)
