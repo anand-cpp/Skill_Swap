@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
 import type { Student, StudentSummary, Match } from "../../types";
 import { api } from "../../api";
+import { DossierSkeleton } from "../ui/Skeleton";
 
 interface DiscoverViewProps {
   activeStudent: Student | null;
@@ -318,10 +319,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         {/* RIGHT COLUMN: Selected Student Profile Deep Dive (~60% on Desktop) */}
         <div className="lg:col-span-7 flex flex-col gap-6">
           {loadingFull ? (
-            <div className="bg-white p-12 rounded-2xl border border-[#c7c4d7]/30 text-center text-[#777586]">
-              <div className="inline-block w-8 h-8 border-3 border-[#4338ca] border-t-transparent rounded-full animate-spin mb-3"></div>
-              <p className="font-['Manrope'] text-[14px]">Loading student portfolio...</p>
-            </div>
+            <DossierSkeleton />
           ) : selectedStudentFull ? (
             <div className="bg-white rounded-2xl p-6 sm:p-8 border border-[#c7c4d7]/40 shadow-xs flex flex-col gap-6">
               {/* Header Hero */}
