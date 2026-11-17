@@ -96,6 +96,9 @@ export const ProposalModal: React.FC<ProposalModalProps> = ({
 
         {/* Modal Window */}
         <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="proposal-modal-title"
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -109,7 +112,7 @@ export const ProposalModal: React.FC<ProposalModalProps> = ({
                 <span className="material-symbols-outlined text-[16px]">swap_horizontal_circle</span>
                 <span>Direct Exchange Proposal</span>
               </div>
-              <h3 className="font-['Newsreader'] text-2xl text-[#1b1b1e] font-medium leading-tight">
+              <h3 id="proposal-modal-title" className="font-['Newsreader'] text-2xl text-[#1b1b1e] font-medium leading-tight">
                 Propose a Learning Swap
               </h3>
               <p className="font-['Manrope'] text-[13px] text-[#777586] mt-0.5">
@@ -117,7 +120,9 @@ export const ProposalModal: React.FC<ProposalModalProps> = ({
               </p>
             </div>
             <button
+              type="button"
               onClick={onClose}
+              aria-label="Close modal"
               className="p-1 rounded-lg text-[#777586] hover:text-[#1b1b1e] hover:bg-[#eae7eb] transition-colors cursor-pointer"
             >
               <span className="material-symbols-outlined text-[20px]">close</span>

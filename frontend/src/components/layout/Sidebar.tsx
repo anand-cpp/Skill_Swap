@@ -75,6 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
+        aria-label="Sidebar navigation"
         className={`fixed left-0 top-0 h-full w-72 bg-[#ffffff] z-50 flex flex-col justify-between border-r border-[#c7c4d7]/40 shadow-sm transition-transform duration-300 ease-in-out ${
           isOpenMobile ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
@@ -107,6 +108,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               return (
                 <button
                   key={item.id}
+                  type="button"
+                  aria-current={isActive ? "page" : undefined}
                   onClick={() => {
                     onNavigate(item.id);
                     onCloseMobile();
