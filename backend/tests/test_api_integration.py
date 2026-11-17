@@ -36,7 +36,10 @@ class TestApiIntegration:
     def test_health_check(self, test_client: TestClient):
         res = test_client.get("/api/health")
         assert res.status_code == 200
-        assert res.json() == {"status": "ok"}
+        data = res.json()
+        assert data["status"] == "ok"
+        assert data["database"]["connected"] is True
+        assert data["database"]["student_count"] >= 18
         assert "x-process-time" in res.headers
         assert res.headers.get("x-frame-options") == "DENY"
 

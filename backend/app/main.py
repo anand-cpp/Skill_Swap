@@ -129,8 +129,32 @@ class AuthSessionIn(BaseModel):
 
 
 @app.get("/api/health")
-def health():
-    return {"status": "ok"}
+def health(conn: sqlite3.Connection = Depends(get_db)):
+    t0 = time.perf_counter()
+    try:
+        cur = conn.execute("SELECT COUNT(*) AS c FROM students")
+        student_count = cur.fetchone()["c"]
+        ping_ms = (time.perf_counter() - t0) * 1000
+        return {
+            "status": "ok",
+            "version": "2.0.0",
+            "env": settings.app_env,
+            "database": {
+                "connected": True,
+                "latency_ms": round(ping_ms, 2),
+                "student_count": student_count,
+            },
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "degraded",
+                "version": "2.0.0",
+                "database": {"connected": False, "error": str(e)},
+            },
+        )
 
 
 @app.post("/api/auth/session")
