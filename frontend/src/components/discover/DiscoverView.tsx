@@ -21,14 +21,16 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   onNavigateToMatches,
   searchQuery,
 }) => {
-  const initialSelectedId =
+  const defaultSelectedId =
     allStudents.find((s) => s.id !== activeStudent?.id)?.id ??
     allStudents[0]?.id ??
     null;
 
-  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(initialSelectedId);
+  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+  const activeSelectedId = selectedStudentId ?? defaultSelectedId;
+
   const [selectedStudentFull, setSelectedStudentFull] = useState<Student | null>(null);
-  const [loadingFull, setLoadingFull] = useState(false);
+  const [fetchErrorId, setFetchErrorId] = useState<number | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "mutual" | string>("all");
   const [localSearch, setLocalSearch] = useState("");
 
@@ -43,36 +45,31 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     return ids;
   }, [matches]);
 
-  // Sync selected student if null and list is populated
-  useEffect(() => {
-    if (selectedStudentId === null && allStudents.length > 0) {
-      const firstPeer = allStudents.find((s) => s.id !== activeStudent?.id) || allStudents[0];
-      if (firstPeer) setSelectedStudentId(firstPeer.id);
-    }
-  }, [allStudents, activeStudent?.id, selectedStudentId]);
-
   // Fetch full details of selected student whenever ID changes
   useEffect(() => {
-    if (!selectedStudentId) {
+    if (!activeSelectedId) {
       return;
     }
     let isMounted = true;
-    setLoadingFull(true);
     api
-      .getStudent(selectedStudentId)
+      .getStudent(activeSelectedId)
       .then((data) => {
         if (isMounted) setSelectedStudentFull(data);
       })
       .catch((err) => {
         console.error("Error loading student details:", err);
-      })
-      .finally(() => {
-        if (isMounted) setLoadingFull(false);
+        if (isMounted) setFetchErrorId(activeSelectedId);
       });
     return () => {
       isMounted = false;
     };
-  }, [selectedStudentId]);
+  }, [activeSelectedId]);
+
+  const loadingFull = Boolean(
+    activeSelectedId &&
+      selectedStudentFull?.id !== activeSelectedId &&
+      fetchErrorId !== activeSelectedId
+  );
 
   // Combined search term
   const effectiveSearch = (searchQuery || localSearch).toLowerCase().trim();
@@ -114,11 +111,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       .toUpperCase();
   };
 
-  const isMutual = selectedStudentId ? mutualPeerIds.has(selectedStudentId) : false;
-  const isSelf = activeStudent?.id === selectedStudentId;
+  const isMutual = activeSelectedId ? mutualPeerIds.has(activeSelectedId) : false;
+  const isSelf = activeStudent?.id === activeSelectedId;
 
   // Selected student's summary from list
-  const selectedStudentSummary = allStudents.find((s) => s.id === selectedStudentId);
+  const selectedStudentSummary = allStudents.find((s) => s.id === activeSelectedId);
 
   return (
     <div className="flex flex-col w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -239,7 +236,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               </div>
             ) : (
               filteredStudents.map((student) => {
-                const isSelected = student.id === selectedStudentId;
+                const isSelected = student.id === activeSelectedId;
                 const studentIsMutual = mutualPeerIds.has(student.id);
                 const isCurrentSelf = student.id === activeStudent?.id;
 

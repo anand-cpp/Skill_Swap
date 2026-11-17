@@ -35,30 +35,67 @@ export function App() {
     setToast({ message, type });
   }, []);
 
-  // 1. Load initial students directory
-  const loadStudents = useCallback(async (selectId?: number) => {
-    try {
-      const list = await api.listStudents();
-      setAllStudents(list);
-
-      if (list.length > 0) {
-        if (selectId) {
-          setActiveStudentId(selectId);
-        } else if (!activeStudentId || !list.some((s) => s.id === activeStudentId)) {
-          setActiveStudentId(list[0].id);
-        }
-      }
-    } catch (err: any) {
-      console.error("Failed to load students:", err);
-      showToast("Unable to reach SkillSwap API. Ensure backend is running.", "error");
-    } finally {
-      setInitialLoading(false);
-    }
-  }, [activeStudentId, showToast]);
-
+  // 1. Initial students directory loading
   useEffect(() => {
-    loadStudents();
-  }, [loadStudents]);
+    let isMounted = true;
+    api
+      .listStudents()
+      .then((list) => {
+        if (!isMounted) return;
+        setAllStudents(list);
+        if (list.length > 0) {
+          setActiveStudentId((prev) => {
+            if (!prev || !list.some((s) => s.id === prev)) {
+              return list[0].id;
+            }
+            return prev;
+          });
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load students:", err);
+        if (isMounted) {
+          showToast("Unable to reach SkillSwap API. Ensure backend is running.", "error");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setInitialLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [showToast]);
+
+  const loadStudents = useCallback(
+    async (selectId?: number) => {
+      try {
+        const list = await api.listStudents();
+        setAllStudents(list);
+
+        if (list.length > 0) {
+          if (selectId) {
+            setActiveStudentId(selectId);
+          } else {
+            setActiveStudentId((prev) => {
+              if (!prev || !list.some((s) => s.id === prev)) {
+                return list[0].id;
+              }
+              return prev;
+            });
+          }
+        }
+      } catch (err: any) {
+        console.error("Failed to load students:", err);
+        showToast("Unable to reach SkillSwap API. Ensure backend is running.", "error");
+      } finally {
+        setInitialLoading(false);
+      }
+    },
+    [showToast]
+  );
 
   // 2. Load active student full profile, matches, cycles, and requests
   const refreshActiveStudentData = useCallback(async (id: number) => {
@@ -81,10 +118,31 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (activeStudentId !== null) {
-      refreshActiveStudentData(activeStudentId);
-    }
-  }, [activeStudentId, refreshActiveStudentData]);
+    if (activeStudentId === null) return;
+    let isMounted = true;
+
+    Promise.all([
+      api.getStudent(activeStudentId),
+      api.matches(activeStudentId).catch(() => ({ student_id: activeStudentId, matches: [], mutual_count: 0 })),
+      api.cycles(activeStudentId).catch(() => ({ student_id: activeStudentId, cycles: [], cycle_count: 0 })),
+      api.requests(activeStudentId).catch(() => ({ requests: [] })),
+    ])
+      .then(([studentData, matchesData, cyclesData, requestsData]) => {
+        if (!isMounted) return;
+        setActiveStudent(studentData);
+        setMatches(matchesData.matches);
+        setMutualCount(matchesData.mutual_count);
+        setCycles(cyclesData.cycles);
+        setRequests(requestsData.requests);
+      })
+      .catch((err) => {
+        console.error("Failed to load active student data:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeStudentId]);
 
   // Handle student selection change
   const handleSelectStudent = (id: number) => {
