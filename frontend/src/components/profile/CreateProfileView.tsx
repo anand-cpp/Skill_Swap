@@ -24,6 +24,7 @@ export const CreateProfileView: React.FC<CreateProfileViewProps> = ({
   const [name, setName] = useState("");
   const [college, setCollege] = useState("");
   const [bio, setBio] = useState("");
+  const [touched, setTouched] = useState<{ name?: boolean; college?: boolean }>({});
 
   // Skills
   const [skills, setSkills] = useState<DraftSkill[]>([
@@ -238,9 +239,17 @@ export const CreateProfileView: React.FC<CreateProfileViewProps> = ({
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
                 placeholder="e.g. Anand Sharma, Priya Patel"
-                className="w-full px-4 py-2.5 bg-white rounded-lg border border-[#c7c4d7]/50 font-['Manrope'] text-[14px] text-[#1b1b1e] focus:outline-none focus:border-[#4338ca] focus:ring-1 focus:ring-[#4338ca]"
+                className={`w-full px-4 py-2.5 bg-white rounded-lg border font-['Manrope'] text-[14px] text-[#1b1b1e] focus:outline-none transition-colors ${
+                  touched.name && !name.trim()
+                    ? "border-[#ba1a1a] focus:ring-1 focus:ring-[#ba1a1a]"
+                    : "border-[#c7c4d7]/50 focus:border-[#4338ca] focus:ring-1 focus:ring-[#4338ca]"
+                }`}
               />
+              {touched.name && !name.trim() && (
+                <p className="mt-1 text-[11px] font-medium text-[#ba1a1a]">Student display name is required</p>
+              )}
             </div>
 
             <div>
@@ -252,9 +261,17 @@ export const CreateProfileView: React.FC<CreateProfileViewProps> = ({
                 required
                 value={college}
                 onChange={(e) => setCollege(e.target.value)}
+                onBlur={() => setTouched((prev) => ({ ...prev, college: true }))}
                 placeholder="e.g. IIT Bombay, BITS Pilani, Stanford"
-                className="w-full px-4 py-2.5 bg-white rounded-lg border border-[#c7c4d7]/50 font-['Manrope'] text-[14px] text-[#1b1b1e] focus:outline-none focus:border-[#4338ca] focus:ring-1 focus:ring-[#4338ca]"
+                className={`w-full px-4 py-2.5 bg-white rounded-lg border font-['Manrope'] text-[14px] text-[#1b1b1e] focus:outline-none transition-colors ${
+                  touched.college && !college.trim()
+                    ? "border-[#ba1a1a] focus:ring-1 focus:ring-[#ba1a1a]"
+                    : "border-[#c7c4d7]/50 focus:border-[#4338ca] focus:ring-1 focus:ring-[#4338ca]"
+                }`}
               />
+              {touched.college && !college.trim() && (
+                <p className="mt-1 text-[11px] font-medium text-[#ba1a1a]">Institution / college is required</p>
+              )}
             </div>
 
             <div className="md:col-span-2">
@@ -262,13 +279,14 @@ export const CreateProfileView: React.FC<CreateProfileViewProps> = ({
                 <label className="block font-['Manrope'] text-[12px] font-bold text-[#1b1b1e] uppercase tracking-wider">
                   Bio & Intellectual Curiosity
                 </label>
-                <span className="font-['Manrope'] text-[11px] text-[#777586]">
-                  {bio.length} characters
+                <span className={`font-['Manrope'] text-[11px] ${bio.length > 250 ? "text-[#ba1a1a] font-bold" : "text-[#777586]"}`}>
+                  {bio.length} / 250 characters
                 </span>
               </div>
               <textarea
                 rows={3}
                 value={bio}
+                maxLength={250}
                 onChange={(e) => setBio(e.target.value)}
                 placeholder="Share your focus, major, and what drives your curiosity (e.g. 'Systems programming enthusiast eager to trade backend techniques for acoustic guitar theory')."
                 className="w-full px-4 py-2.5 bg-white rounded-lg border border-[#c7c4d7]/50 font-['Manrope'] text-[14px] text-[#1b1b1e] focus:outline-none focus:border-[#4338ca] focus:ring-1 focus:ring-[#4338ca]"
