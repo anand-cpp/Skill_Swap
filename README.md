@@ -1,96 +1,115 @@
-# SkillSwap
+# SkillSwap — Reciprocal Student Skill Exchange
 
-**Skill exchange, not a directory.**
+[![CI](https://github.com/anand-cpp/Mini-Hackathon/actions/workflows/ci.yml/badge.svg)](https://github.com/anand-cpp/Mini-Hackathon/actions/workflows/ci.yml)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-19.2+-61DAFB?logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-SkillSwap helps students trade skills with each other. Instead of a static list of
-mentors, it maps the skill network and finds **reciprocal exchanges**: people who
-teach exactly what you want to learn, AND want to learn what you can teach.
+**Equitable knowledge barter, not a static directory.**
 
-Built and shipped inside a 200-minute hackathon budget.
+SkillSwap algorithmically connects collegiate students to trade skills directly with each other. Rather than one-way tutoring or monetary transactions, it maps the campus skill network to identify **reciprocal barter loops**: peers who teach what you want to learn, AND want to learn what you can teach.
 
-## What it does
+---
 
-- **Declare skills** — what you can teach and what you want to learn.
-- **Find your exchanges** — the matching engine scores the whole student network and
-  ranks matches into two transparent classes:
-  - **MUTUAL** — a perfect 2-way swap (they teach what you learn, you teach what they
-    learn). Shown with the exact exchange loop and the checks behind it.
-  - **RELEVANT** — a one-way mentor (they teach what you want, or want what you teach).
-- **Exchange chains** — when no direct swap exists, SkillSwap finds **3-person cycles**
-  (A teaches B, B teaches C, C teaches A) and explains the loop.
-- **Close the loop** — request an exchange → partner accepts → mark it completed.
-  Every state is visible in a live inbox: incoming, outgoing, active, completed.
+## Key Capabilities
 
-### Why it's different
+- **Skill Normalization Engine**: Curated alias dictionary maps diverse inputs (`react.js`, `frontend`, `web dev`) to canonical ontology (`Web Development`).
+- **Two-Way Mutual Match Scoring**: Transparent algorithmic ranking separating 100% reciprocal bilateral swaps from one-way mentor opportunities.
+- **Three-Person Circular Barter**: Automatic topological detection of 3-person closed loops ($A \rightarrow B \rightarrow C \rightarrow A$) when direct 2-way swaps are unavailable.
+- **Request Lifecycle Clearinghouse**: Real-time state machine tracking proposal dispatch, recipient decision (Accept / Reject), and verified completion.
+- **Security & Authorization**: HMAC-SHA256 bearer session tokens, sliding-window rate limiting, HTTP security headers, and strict ownership validation.
+- **High-Performance Persistence**: SQLite in WAL mode with connection pooling pragmas and composite database indexes.
+- **Stitch Academic Editorial UX**: Responsive design inspired by Google Stitch with Newsreader typography, emerald teaching badges, and indigo learning goals.
 
-- **No match percentages.** Matches come with the *reasons and checks* that produce
-  them — the swap loop, the skills, the expert flags. Every result is explainable.
-- **Reciprocity is the product.** People aren't ranked by one-way "mentor scores";
-  the engine optimises for exchanges both sides win.
-- **Skill normalization** maps synonyms (ReactJS → Web Development, speaking →
-  Public Speaking) so matching works on meaning, not on accidental string equality.
-- **Deterministic and offline-safe.** Pure Python + SQLite. No external APIs, no AI,
-  no embeddings — every match is reproducible from the same data.
+---
 
-## Demo storyline (live workflow ~90 seconds)
+## System Architecture
 
-1. Open the app → Riya Sharma is preselected. Note her teach/learn chips.
-2. **Find my exchanges** → Riya gets **4 mutual swaps** (Vikram: "They teach Guitar →
-   you learn / You teach Python → they learn" with the checks listed).
-3. **Request exchange** with Vikram → the card flips to "Request sent / waiting".
-4. Switch to **Vikram** (sidebar) → his inbox shows Riya's incoming request → **Accept**.
-   The exchange moves to "Active exchanges" with role-aware text for each user.
-5. **Mark exchange completed** → the loop closes: "✓ Riya taught you Public Speaking
-   and you taught them Guitar."
-6. Edge cases on the same network: **Isha** has no direct match (honest empty state),
-   **Neha** gets a **3-person cycle** (Neha→Priya→Omar→Neha: photography for Excel for
-   Spanish).
-
-## Architecture
+See detailed specifications in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ```
-frontend/   Vite + React + TypeScript     (production build ~72 kB gzip)
-backend/    FastAPI + SQLite (stdlib)     (pure Python, deterministic engine)
+frontend/   Vite + React 19 + TypeScript + Tailwind CSS v4 + Vitest
+backend/    FastAPI + SQLite (WAL mode) + Pytest + Uvicorn
+deploy/     Docker + Multi-stage Nginx + Docker Compose
 ```
 
-- `backend/app/db.py` — schema + 18-student seeded network with deliberately
-  designed cases: mutuals, one-way mentors, a no-match user, a perfect 3-person cycle.
-- `backend/app/normalize.py` — skill alias/normalization map.
-- `backend/app/matching.py` — `match_student` (match classes + checks + reasons) and
-  `find_cycles` (3-person exchange-cycle detection).
-- `backend/app/main.py` — REST API: students, skills, matches, cycles, requests with
-  a full lifecycle (`pending → accepted → completed`) and ownership validation.
+---
 
-The engine is generic over the skill graph (N students × M skills); the seed data is
-just demo records — nothing is special-cased.
+## Quick Start
 
-## Run it
+### Option A: Local Development
 
+#### 1. Backend (FastAPI)
 ```bash
-# backend (http://127.0.0.1:8000)
 cd backend
+python -m venv .venv
+source .venv/bin/activate  # Or on Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
 
-# frontend (http://localhost:5173 dev, or npm run preview after a build)
+#### 2. Frontend (Vite)
+```bash
 cd frontend
 npm install
 npm run dev
 ```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-CORS is open for local dev; the DB is created and seeded automatically on first run.
+---
 
-## API surface
+### Option B: Docker Compose
 
-| Method | Path | Purpose |
-|---|---|---|
-| POST | `/api/students` | create student with teach/learn skills (normalized) |
-| GET | `/api/students` | list students with teach/learn counts |
-| GET | `/api/students/{id}` | student detail |
-| POST | `/api/students/{id}/matches` | ranked MUTUAL/RELEVANT matches with checks |
-| POST | `/api/students/{id}/cycles` | 3-person exchange chains |
-| GET | `/api/requests/{id}` | sender + receiver requests for a student |
-| POST | `/api/requests` | send exchange request (validates skill ownership) |
-| POST | `/api/requests/{id}/accept` | accept (creates the exchange) |
-| POST | `/api/requests/{id}/reject` | decline |
-| POST | `/api/requests/{id}/complete` | mark the exchange completed |
+Spin up the entire production stack (backend API + frontend reverse proxy) with one command:
+```bash
+docker compose up --build -d
+```
+Access the application at [http://localhost](http://localhost).
+
+---
+
+## Running Test Suites
+
+### Backend Unit & Integration Tests (73 tests)
+```bash
+cd backend
+pytest tests -v
+```
+
+### Frontend Component & Unit Tests (5 tests)
+```bash
+cd frontend
+npm test
+```
+
+### TypeScript Validation & Production Build
+```bash
+cd frontend
+npm run build
+```
+
+---
+
+## API Reference Surface
+
+| Method | Path | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/api/health` | Service health, DB ping, and latency metrics | No |
+| `POST` | `/api/auth/session` | Create HMAC-SHA256 signed bearer token | No |
+| `GET` | `/api/students` | List student directory with skill counts | No |
+| `GET` | `/api/students/{id}` | Detailed student dossier with skills | No |
+| `POST` | `/api/students` | Register student profile with skills | Optional |
+| `POST` | `/api/students/{id}/matches` | Bilateral mutual and relevant matches | No |
+| `POST` | `/api/students/{id}/cycles` | Triangular 3-person exchange loops | No |
+| `GET` | `/api/requests/{id}` | Incoming and outgoing exchange proposals | No |
+| `POST` | `/api/requests` | Propose exchange (ownership validated) | Bearer Token / Open |
+| `POST` | `/api/requests/{id}/accept` | Accept pending exchange proposal | Recipient Token / Open |
+| `POST` | `/api/requests/{id}/reject` | Reject pending exchange proposal | Recipient Token / Open |
+| `POST` | `/api/requests/{id}/complete` | Mark accepted exchange as completed | Participant Token / Open |
+
+---
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.
